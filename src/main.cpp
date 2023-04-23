@@ -9,14 +9,7 @@ int main(int, char**)
 {
     cv::Mat frame;
     cv::Mat resized_frame;
-    //--- INITIALIZE VIDEOCAPTURE
     cv::VideoCapture cap;
-    // open the default camera using default API
-    // cap.open(0);
-    // OR advance usage: select any API backend
-    int deviceID = 0;             // 0 = open default camera
-    int apiID = cv::CAP_ANY;      // 0 = autodetect default API
-    // open selected camera using selected API
     std::string address = "http://raspberrypi:8888/video";
     cap.open(address);
     // check if we succeeded
@@ -24,8 +17,7 @@ int main(int, char**)
         std::cerr << "ERROR! Unable to open camera\n";
         return -1;
     }
-    //--- GRAB AND WRITE LOOP
-    cv::namedWindow("IP Stream");
+    cv::namedWindow("IP Stream", cv::WINDOW_NORMAL);
     std::cout << "Start grabbing \n Press any key to terminate" << std::endl;
     auto time = std::chrono::steady_clock::now();
     unsigned int fps = 0;
@@ -52,7 +44,7 @@ int main(int, char**)
             std::cerr << "ERROR! blank frame grabbed\n";
             break;
         }
-        cv::resize(frame, resized_frame, cv::Size(5000, 1874), cv::INTER_CUBIC);
+        cv::resize(frame, resized_frame, cv::Size(4056, 1080), cv::INTER_CUBIC);
         if(first_frame)
         {
             cv::imwrite(ASSET_PATH"first_frame.jpg", resized_frame);
