@@ -14,7 +14,7 @@ public:
     ThreadCam();
     virtual ~ThreadCam();
 
-    void Init(std::string dev);
+    void Init(std::string dev, cv::VideoCaptureAPIs flags);
     void GetFrame(cv::Mat& m);      //returns empty when no frame is available.
     void Quit(void);
 protected:
@@ -23,6 +23,7 @@ protected:
 private:
     size_t Tag,PrevTag;
     std::string device;
+    cv::VideoCaptureAPIs api;
     cv::Mat mm;
     cv::VideoCapture cap;
     std::mutex mtx;
