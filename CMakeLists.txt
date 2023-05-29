@@ -19,7 +19,7 @@ file(GLOB SOURCES
 
 add_executable(VideoStream ${SOURCES})
 
-set(OpenCV_DIR "C:/Program Files/OpenCV/build_opencv")
+set(OpenCV_DIR "C:/lib/install/opencv")
 find_package(OpenCV REQUIRED)
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 target_link_libraries( VideoStream ${OpenCV_LIBS} )

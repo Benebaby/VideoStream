@@ -1,60 +1,77 @@
-#include <opencv2/core.hpp>
-#include <opencv2/videoio.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/opencv.hpp>
 #include <iostream>
-#include <stdio.h>
-#include <chrono>
-int main(int, char**)
+#include <cstdlib>
+#include <opencv2/opencv.hpp>
+#include <opencv2/highgui.hpp>
+#include "ThreadCam.h"
+//---------------------------------------------------------------------------
+int main()
 {
-    cv::Mat frame;
-    cv::Mat resized_frame;
-    cv::VideoCapture cap;
-    std::string address = "http://raspberrypi:8888/video";
-    cap.open(address);
-    // check if we succeeded
-    if (!cap.isOpened()) {
-        std::cerr << "ERROR! Unable to open camera\n";
-        return -1;
-    }
-    cv::namedWindow("IP Stream", cv::WINDOW_NORMAL);
-    std::cout << "Start grabbing \n Press any key to terminate" << std::endl;
-    auto time = std::chrono::steady_clock::now();
-    unsigned int fps = 0;
-    bool first_frame = true;
+    cv::Size camSize(1280, 720);
+    cv::Size previewSize(1600, 900);
+    cv::Mat Frame1, Frame2, FrameCon1;
+    cv::Mat Frame3, Frame4, FrameCon2, FrameTotal, FrameTotalResized;
+    cv::Mat FrameE(camSize.height, camSize.width, CV_8UC3, cv::Scalar(128,128,128));  //a gray frame
+    //
+    /// In this example, 4 cameras are used. This is not necessary. 
+    /// You can control any number, one, two or, for example, six. It does not matter.    
+    //
+    ThreadCam *Grb1, *Grb2, *Grb3;
+
+    Grb1 = new ThreadCam();
+    Grb2 = new ThreadCam();
+    Grb3 = new ThreadCam();
+
+    Grb1->Init("videotestsrc ! video/x-raw, width=1280, height=720,framerate=30/1 ! clockoverlay ! videoscale ! videoconvert ! appsink");      //Camera 1
+    Grb2->Init("videotestsrc ! video/x-raw, width=1280, height=720,framerate=30/1 ! clockoverlay ! videoscale ! videoconvert ! appsink");      //Camera 2
+    Grb3->Init("videotestsrc ! video/x-raw, width=1280, height=720,framerate=30/1 ! clockoverlay ! videoscale ! videoconvert ! appsink");      //Camera 3
+    // use a gray frame to indicate an empty field (lost connection with camera, for instance)
+    //
+    ///  be sure every frame has the same size!
+    ///  hconcat and vconcat expect equal width and height
+    ///  otherwise OpenCV throws exceptions
+    //
     while(true)
     {
-        fps++;
-        auto current_time = std::chrono::steady_clock::now();
-        auto Duration = std::chrono::duration_cast<std::chrono::microseconds>(current_time-time);
-        if(Duration.count() > 1000000)
-        {
-            std::cout << "FPS: " << fps << std::endl;
-            time = std::chrono::steady_clock::now();
-            fps = 0;
+        //get the new frame
+        Grb1->GetFrame(Frame1);
+        if(!Frame1.empty()){
+            ///place here your time consuming algorithms
         }
-        // wait for a new frame from camera and store it into 'frame'
-        cap.read(frame);
-        if(first_frame)
-        {
-            std::cout << "RESOLUTION: " << frame.cols << "x" << frame.rows << std::endl;
+        else FrameE.copyTo(Frame1);
+
+        //get the new frame
+        Grb2->GetFrame(Frame2);
+        if(!Frame2.empty()){
+            ///place here your time consuming algorithms
         }
-        // check if we succeeded
-        if (frame.empty()) {
-            std::cerr << "ERROR! blank frame grabbed\n";
-            break;
+        else FrameE.copyTo(Frame2);
+
+        //get the new frame
+        Grb3->GetFrame(Frame3);
+        if(!Frame3.empty()){
+            ///place here your time consuming algorithms
         }
-        cv::resize(frame, resized_frame, cv::Size(4056, 1080), cv::INTER_CUBIC);
-        if(first_frame)
-        {
-            cv::imwrite(ASSET_PATH"first_frame.jpg", resized_frame);
-            first_frame = false;
-        }
-        // show live and wait for a key with timeout long enough to show images
-        cv::imshow("IP Stream", resized_frame);
-        if (cv::waitKey(5) >= 0)
-            break;
+        else FrameE.copyTo(Frame3);
+
+        //concat the four frames
+        cv::hconcat(Frame1,Frame2,FrameCon1);
+        cv::hconcat(Frame3,FrameE,FrameCon2);
+        cv::vconcat(FrameCon1,FrameCon2,FrameTotal);
+        cv::resize(FrameTotal, FrameTotalResized, previewSize);
+
+        //show the result
+        cv::imshow("Camera Preview",FrameTotalResized);
+        char esc = cv::waitKey(5);
+        if(esc == 27) break;
     }
-    // the camera will be deinitialized automatically in VideoCapture destructor
+    /// Gracefully, terminate the threads.
+    Grb1->Quit();
+    Grb2->Quit();
+    Grb3->Quit();
+
+    delete Grb1;
+    delete Grb2;
+    delete Grb3;
+
     return 0;
 }
