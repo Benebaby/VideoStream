@@ -8,7 +8,7 @@ using namespace std::chrono_literals;
 //---------------------------------------------------------------------------
 int main()
 {
-    cv::Size camSize(1024, 768);
+    cv::Size camSize(1600, 1200);
     cv::Size previewSize(1332, 999);
     cv::VideoCapture videoCapture;
     cv::VideoWriter videoWriter;
@@ -36,7 +36,8 @@ int main()
     //
     auto time = std::chrono::steady_clock::now();
     auto captureTime = std::chrono::steady_clock::now();
-    unsigned int fps = 0;
+    uint32_t fps = 0;
+    uint32_t writtenfps = 0;
     cv::namedWindow("Camera Preview", cv::WINDOW_AUTOSIZE);
 
     while(true)
@@ -50,8 +51,11 @@ int main()
         if(Duration.count() > 1000000)
         {
             std::cout << "FPS: " << fps << std::endl;
+            if(record)
+                std::cout << "Written-FPS: " << writtenfps << std::endl;
             time = std::chrono::steady_clock::now();
             fps = 0;
+            writtenfps = 0;
         }
         //get the new frame
         Grb1->GetFrame(Frame1);
@@ -105,6 +109,7 @@ int main()
             auto Duration = std::chrono::duration_cast<std::chrono::microseconds>(currentCaptureTime-captureTime);
             if(Duration.count() >= 33333){
                 videoWriter.write(FrameTotal);
+                writtenfps++;
                 currentCaptureTime = std::chrono::steady_clock::now();
             }
         }
