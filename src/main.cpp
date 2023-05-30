@@ -6,11 +6,14 @@
 //---------------------------------------------------------------------------
 int main()
 {
-    cv::Size camSize(1024, 576);
-    cv::Size previewSize(1600, 900);
+    cv::Size camSize(1024, 768);
+    cv::Size previewSize(1332, 999);
+    cv::VideoCapture videoCapture;
+    cv::VideoWriter videoWriter;
     cv::Mat Frame1, Frame2, FrameCon1;
-    cv::Mat Frame3, Frame4, FrameCon2, FrameTotal, FrameTotalResized;
+    cv::Mat Frame3, Frame4, FrameCon2, FrameTotal, FrameTotalPreview;
     cv::Mat FrameE(camSize.height, camSize.width, CV_8UC3, cv::Scalar(50,50,50));  //a gray frame
+    bool record = false;
     //
     /// In this example, 4 cameras are used. This is not necessary. 
     /// You can control any number, one, two or, for example, six. It does not matter.    
@@ -32,8 +35,13 @@ int main()
     //
     auto time = std::chrono::steady_clock::now();
     unsigned int fps = 0;
+    cv::namedWindow("Camera Preview", cv::WINDOW_AUTOSIZE);
+
     while(true)
     {
+        char keyPressed = cv::pollKey();
+        if(keyPressed == 27) 
+            break;
         fps++;
         auto current_time = std::chrono::steady_clock::now();
         auto Duration = std::chrono::duration_cast<std::chrono::microseconds>(current_time-time);
@@ -61,11 +69,48 @@ int main()
         cv::hconcat(Frame1,Frame2,FrameCon1);
         cv::hconcat(Frame3,FrameE,FrameCon2);
         cv::vconcat(FrameCon1,FrameCon2,FrameTotal);
-        //cv::resize(FrameTotal, FrameTotalResized, previewSize, cv::INTER_NEAREST);
+        cv::resize(FrameTotal, FrameTotalPreview, previewSize, cv::INTER_NEAREST);
+        if(keyPressed == 114 || keyPressed == 82)
+        {
+            if(record)
+            {
+                record = false;
+                videoCapture.release();
+                videoWriter.release();
+            }
+            else
+            {
+                record = true;
+                time_t tt = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+                tm local_tm = *localtime(&tt);
+                std::string name = std::to_string(local_tm.tm_mday)+"-"+std::to_string(local_tm.tm_mon + 1)+"-"+std::to_string(local_tm.tm_year + 1900)+"_"+std::to_string(local_tm.tm_hour)+"-"+std::to_string(local_tm.tm_min)+"-"+std::to_string(local_tm.tm_sec)+".avi";
+                std::cout << "Start Recording: " << name << std::endl;
+                videoCapture = cv::VideoCapture("appsrc ! decodebin ! jpegenc ! avimux ! filesink location="+name, cv::CAP_GSTREAMER);
+                videoCapture.set(3, FrameTotal.cols);
+                videoCapture.set(4, FrameTotal.rows);
+                int32_t fourcc = cv::VideoWriter::fourcc('M', 'J', 'P', 'G');
+                videoWriter = cv::VideoWriter(name, fourcc, 30.0, cv::Size(FrameTotal.cols,FrameTotal.rows));
+            }
+        }
 
-        cv::imshow("Camera Preview",FrameTotal);
-        char esc = cv::waitKey(5);
-        if(esc == 27) break;
+        if(record)
+        {
+            cv::rectangle(FrameTotalPreview, cv::Point(0, 0), cv::Point(FrameTotalPreview.cols, 10), cv::Scalar(0, 255, 0), -1);
+            cv::rectangle(FrameTotalPreview, cv::Point(0, (FrameTotalPreview.rows - 10)), cv::Point(FrameTotalPreview.cols, FrameTotalPreview.rows), cv::Scalar(0, 255, 0), -1);
+            cv::rectangle(FrameTotalPreview, cv::Point(0, 0), cv::Point(10, FrameTotalPreview.rows), cv::Scalar(0, 255, 0), -1);
+            cv::rectangle(FrameTotalPreview, cv::Point((FrameTotalPreview.cols - 10), 0), cv::Point(FrameTotalPreview.cols, FrameTotalPreview.rows), cv::Scalar(0, 255, 0), -1);
+            videoWriter.write(FrameTotal);
+        }
+        
+        if (cv::getWindowProperty("Camera Preview", cv::WND_PROP_VISIBLE) > 0)
+        {
+            cv::imshow("Camera Preview",FrameTotalPreview);
+        }
+        else
+        {
+            cv::destroyAllWindows();
+            break;
+        }
     }
     /// Gracefully, terminate the threads.
     Grb1->Quit();
