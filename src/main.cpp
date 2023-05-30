@@ -1,8 +1,10 @@
 #include <iostream>
 #include <cstdlib>
+#include <chrono>
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui.hpp>
 #include "ThreadCam.h"
+using namespace std::chrono_literals;
 //---------------------------------------------------------------------------
 int main()
 {
@@ -23,10 +25,9 @@ int main()
     Grb1 = new ThreadCam();
     Grb2 = new ThreadCam();
     Grb3 = new ThreadCam();
-
-    Grb1->Init("videotestsrc ! video/x-raw, width="+std::to_string(camSize.width)+", height="+std::to_string(camSize.height)+",framerate=60/1 ! clockoverlay text=\"cam1\" font-desc=\"Sans, 14\" color=\"4278190080\" draw-outline=\"false\" draw-shadow=\"false\" ! appsink", cv::CAP_GSTREAMER);      //Camera 1
-    Grb2->Init("videotestsrc ! video/x-raw, width="+std::to_string(camSize.width)+", height="+std::to_string(camSize.height)+",framerate=60/1 ! clockoverlay text=\"cam2\" font-desc=\"Sans, 14\" color=\"4278190080\" draw-outline=\"false\" draw-shadow=\"false\" ! appsink", cv::CAP_GSTREAMER);      //Camera 2
-    Grb3->Init("videotestsrc ! video/x-raw, width="+std::to_string(camSize.width)+", height="+std::to_string(camSize.height)+",framerate=60/1 ! clockoverlay text=\"cam3\" font-desc=\"Sans, 14\" color=\"4278190080\" draw-outline=\"false\" draw-shadow=\"false\" ! appsink", cv::CAP_GSTREAMER);      //Camera 3
+    Grb1->Init("tcpclientsrc host=169.254.69.128 port=8888 ! jpegdec ! videoconvert ! appsink", cv::CAP_GSTREAMER);      //Camera 1
+    Grb2->Init("tcpclientsrc host=169.254.196.5 port=8888 ! jpegdec ! videoconvert ! appsink", cv::CAP_GSTREAMER);      //Camera 2
+    Grb3->Init("tcpclientsrc host=169.254.103.56 port=8888 ! jpegdec ! videoconvert ! appsink", cv::CAP_GSTREAMER);      //Camera 3
     // use a gray frame to indicate an empty field (lost connection with camera, for instance)
     //
     ///  be sure every frame has the same size!
@@ -34,17 +35,18 @@ int main()
     ///  otherwise OpenCV throws exceptions
     //
     auto time = std::chrono::steady_clock::now();
+    auto captureTime = std::chrono::steady_clock::now();
     unsigned int fps = 0;
     cv::namedWindow("Camera Preview", cv::WINDOW_AUTOSIZE);
 
     while(true)
     {
-        char keyPressed = cv::pollKey();
-        if(keyPressed == 27) 
-            break;
         fps++;
         auto current_time = std::chrono::steady_clock::now();
         auto Duration = std::chrono::duration_cast<std::chrono::microseconds>(current_time-time);
+        char keyPressed = cv::pollKey();
+        if(keyPressed == 27) 
+            break;
         if(Duration.count() > 1000000)
         {
             std::cout << "FPS: " << fps << std::endl;
@@ -83,12 +85,12 @@ int main()
                 record = true;
                 time_t tt = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
                 tm local_tm = *localtime(&tt);
-                std::string name = std::to_string(local_tm.tm_mday)+"-"+std::to_string(local_tm.tm_mon + 1)+"-"+std::to_string(local_tm.tm_year + 1900)+"_"+std::to_string(local_tm.tm_hour)+"-"+std::to_string(local_tm.tm_min)+"-"+std::to_string(local_tm.tm_sec)+".avi";
+                std::string name = std::to_string(local_tm.tm_mday)+"-"+std::to_string(local_tm.tm_mon + 1)+"-"+std::to_string(local_tm.tm_year + 1900)+"_"+std::to_string(local_tm.tm_hour)+"-"+std::to_string(local_tm.tm_min)+"-"+std::to_string(local_tm.tm_sec)+".mp4";
                 std::cout << "Start Recording: " << name << std::endl;
-                videoCapture = cv::VideoCapture("appsrc ! decodebin ! jpegenc ! avimux ! filesink location="+name, cv::CAP_GSTREAMER);
+                videoCapture = cv::VideoCapture("appsrc ! decodebin ! x264enc ! mp4mux ! filesink location="+name, cv::CAP_GSTREAMER);
                 videoCapture.set(3, FrameTotal.cols);
                 videoCapture.set(4, FrameTotal.rows);
-                int32_t fourcc = cv::VideoWriter::fourcc('M', 'J', 'P', 'G');
+                int32_t fourcc = cv::VideoWriter::fourcc('M', 'P', '4', 'V');
                 videoWriter = cv::VideoWriter(name, fourcc, 30.0, cv::Size(FrameTotal.cols,FrameTotal.rows));
             }
         }
@@ -99,7 +101,12 @@ int main()
             cv::rectangle(FrameTotalPreview, cv::Point(0, (FrameTotalPreview.rows - 10)), cv::Point(FrameTotalPreview.cols, FrameTotalPreview.rows), cv::Scalar(0, 255, 0), -1);
             cv::rectangle(FrameTotalPreview, cv::Point(0, 0), cv::Point(10, FrameTotalPreview.rows), cv::Scalar(0, 255, 0), -1);
             cv::rectangle(FrameTotalPreview, cv::Point((FrameTotalPreview.cols - 10), 0), cv::Point(FrameTotalPreview.cols, FrameTotalPreview.rows), cv::Scalar(0, 255, 0), -1);
-            videoWriter.write(FrameTotal);
+            auto currentCaptureTime = std::chrono::steady_clock::now();
+            auto Duration = std::chrono::duration_cast<std::chrono::microseconds>(currentCaptureTime-captureTime);
+            if(Duration.count() >= 33333){
+                videoWriter.write(FrameTotal);
+                currentCaptureTime = std::chrono::steady_clock::now();
+            }
         }
         
         if (cv::getWindowProperty("Camera Preview", cv::WND_PROP_VISIBLE) > 0)
