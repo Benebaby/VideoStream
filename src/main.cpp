@@ -9,7 +9,7 @@ using namespace std::chrono_literals;
 int main()
 {
     cv::Size camSize(1600, 1200);
-    cv::Size previewSize(1332, 999);
+    cv::Size previewSize(1920, 1440);
     cv::VideoCapture videoCapture;
     cv::VideoWriter videoWriter;
     cv::Mat Frame1, Frame2, FrameCon1;
@@ -20,14 +20,16 @@ int main()
     /// In this example, 4 cameras are used. This is not necessary. 
     /// You can control any number, one, two or, for example, six. It does not matter.    
     //
-    ThreadCam *Grb1, *Grb2, *Grb3;
+    ThreadCam *Grb1, *Grb2, *Grb3, *Grb4;
 
     Grb1 = new ThreadCam();
     Grb2 = new ThreadCam();
     Grb3 = new ThreadCam();
-    Grb1->Init("tcpclientsrc host=169.254.69.128 port=8888 ! jpegdec ! videoconvert ! appsink", cv::CAP_GSTREAMER);      //Camera 1
-    Grb2->Init("tcpclientsrc host=169.254.196.5 port=8888 ! jpegdec ! videoconvert ! appsink", cv::CAP_GSTREAMER);      //Camera 2
-    Grb3->Init("tcpclientsrc host=169.254.103.56 port=8888 ! jpegdec ! videoconvert ! appsink", cv::CAP_GSTREAMER);      //Camera 3
+    Grb4 = new ThreadCam();
+    Grb1->Init("tcpclientsrc host=192.168.178.151 port=8888 ! jpegdec ! videoconvert ! appsink", cv::CAP_GSTREAMER);      //Camera 1
+    Grb2->Init("tcpclientsrc host=192.168.178.136 port=8888 ! jpegdec ! videoconvert ! appsink", cv::CAP_GSTREAMER);      //Camera 2
+    Grb3->Init("tcpclientsrc host=192.168.178.137 port=8888 ! jpegdec ! videoconvert ! appsink", cv::CAP_GSTREAMER);      //Camera 3
+    Grb4->Init("tcpclientsrc host=192.168.178.150 port=8888 ! jpegdec ! videoconvert ! appsink", cv::CAP_GSTREAMER);      //Camera 4
     // use a gray frame to indicate an empty field (lost connection with camera, for instance)
     //
     ///  be sure every frame has the same size!
@@ -72,8 +74,13 @@ int main()
         if(!Frame3.empty()){}
         else FrameE.copyTo(Frame3);
 
+        //get the new frame
+        Grb4->GetFrame(Frame4);
+        if(!Frame4.empty()){}
+        else FrameE.copyTo(Frame4);
+
         cv::hconcat(Frame1,Frame2,FrameCon1);
-        cv::hconcat(Frame3,FrameE,FrameCon2);
+        cv::hconcat(Frame3,Frame4,FrameCon2);
         cv::vconcat(FrameCon1,FrameCon2,FrameTotal);
         cv::resize(FrameTotal, FrameTotalPreview, previewSize, cv::INTER_NEAREST);
         if(keyPressed == 114 || keyPressed == 82)
@@ -128,10 +135,12 @@ int main()
     Grb1->Quit();
     Grb2->Quit();
     Grb3->Quit();
+    Grb4->Quit();
 
     delete Grb1;
     delete Grb2;
     delete Grb3;
+    delete Grb4;
 
     return 0;
 }

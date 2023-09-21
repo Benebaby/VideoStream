@@ -63,6 +63,7 @@ void ThreadCam::GrabThread(void)
 //----------------------------------------------------------------------------------
 void ThreadCam::GetFrame(cv::Mat& m)
 {
+    double Elapse;
     cv::Mat EmptyMat(mm.rows, mm.cols, CV_8UC3, cv::Scalar(50,50,50));
     std::chrono::steady_clock::time_point Tyet, Tgrab;
 
@@ -74,8 +75,33 @@ void ThreadCam::GetFrame(cv::Mat& m)
         }
         PrevTag=GrabTag.load();
     }
-    else if(GrabOpen.load()==false){
-        //lost connection -> send empty frame
-        EmptyMat.copyTo(m);
+    else{
+        //quick check to see if there is a connection
+        if(GrabOpen.load()==false){
+            //lost connection -> send empty frame
+            EmptyMat.copyTo(m);
+        }
+        else{
+            //we have to wait (or the connection is lost)
+            Tgrab = std::chrono::steady_clock::now();
+            do{
+                Tyet   = std::chrono::steady_clock::now();
+                Elapse = (double) std::chrono::duration_cast<std::chrono::milliseconds> (Tgrab - Tyet).count();
+            }
+            while(GrabTag.load()==PrevTag && GrabOpen.load()==true && Elapse<500); //wait 500mS before giving an empty frame
+
+            if(GrabTag.load()!=PrevTag && GrabOpen.load()==true && Elapse<500){
+                //new frame
+                {
+                    std::lock_guard<std::mutex> lock(mtx);
+                    mm.copyTo(m);
+                }
+                PrevTag=GrabTag.load();
+            }
+            else{
+                //something wrong -> send empty frame
+                EmptyMat.copyTo(m);
+            }
+        }
     }
 }
