@@ -8,8 +8,8 @@ using namespace std::chrono_literals;
 //---------------------------------------------------------------------------
 int main()
 {
-    cv::Size camSize(1600, 1200);
-    cv::Size previewSize(1920, 1440);
+    cv::Size camSize(1216, 912);
+    cv::Size previewSize(2432, 1824);
     cv::VideoCapture videoCapture;
     cv::VideoWriter videoWriter;
     cv::Mat Frame1, Frame2, FrameCon1;
